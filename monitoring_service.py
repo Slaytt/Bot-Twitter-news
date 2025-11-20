@@ -46,33 +46,28 @@ def process_topic(topic):
     source_type = topic.get('source_type', 'web_search')
     logger.info(f"Processing topic: {topic['query']} (Type: {source_type})")
     
-    found_item = None # {url, title, content (optional), is_tweet}
+    potential_items = [] # Liste de {url, title, content (opt), is_tweet}
     
-    # --- 1. Récupération du contenu selon le type ---
+    # --- 1. Récupération des candidats ---
     
     if source_type == 'twitter':
         # Recherche Twitter
         tweets = search_tweets(topic['query'])
         for tweet in tweets:
             tweet_url = f"https://twitter.com/user/status/{tweet['id']}"
-            if not is_url_processed(tweet_url):
-                found_item = {
-                    'url': tweet_url,
-                    'title': f"Tweet from {tweet['id']}",
-                    'content': tweet['text'],
-                    'is_tweet': True
-                }
-                break
+            potential_items.append({
+                'url': tweet_url,
+                'title': f"Tweet from {tweet['id']}",
+                'content': tweet['text'],
+                'is_tweet': True
+            })
                 
     elif source_type == 'specific_url':
-        # Surveillance d'une page spécifique
+        # Surveillance d'une page spécifique (Deep Scan)
         try:
             links = asyncio.run(get_links_from_page(topic['query']))
-            # On cherche le premier nouveau lien
             for link in links:
-                if not is_url_processed(link):
-                    found_item = {'url': link, 'title': 'New Link', 'is_tweet': False}
-                    break
+                potential_items.append({'url': link, 'title': 'New Link', 'is_tweet': False})
         except Exception as e:
             logger.error(f"Error monitoring URL {topic['query']}: {e}")
             
@@ -80,54 +75,80 @@ def process_topic(topic):
         try:
             results = DDGS().text(topic['query'], max_results=5)
             for res in results:
-                if not is_url_processed(res['href']):
-                    found_item = {'url': res['href'], 'title': res['title'], 'is_tweet': False}
-                    break
+                potential_items.append({'url': res['href'], 'title': res['title'], 'is_tweet': False})
         except Exception as e:
             logger.error(f"Search failed for {topic['query']}: {e}")
 
-    # --- 2. Traitement du contenu trouvé ---
-
-    if not found_item:
-        logger.info(f"No new content for {topic['query']}")
-        update_topic_last_run(topic['id'])
-        return
-
-    logger.info(f"Found new content: {found_item['url']}")
+    # --- 2. Traitement des nouveaux items ---
     
-    # Scraping si nécessaire (si ce n'est pas un tweet et qu'on n'a pas le contenu)
-    source_content = found_item.get('content')
-    if not source_content and not found_item.get('is_tweet'):
-        try:
-            source_content = asyncio.run(scrape_website(found_item['url']))
-        except Exception as e:
-            logger.error(f"Failed to scrape {found_item['url']}: {e}")
-            return
-
-    # --- 3. Génération du tweet ---
+    items_processed = 0
     
-    prompt_topic = topic['query']
-    if found_item.get('is_tweet'):
-        prompt_topic = f"Réaction au tweet sur {topic['query']}"
+    for item in potential_items:
+        # Vérifier si déjà traité
+        if is_url_processed(item['url']):
+            continue
+            
+        logger.info(f"New content found: {item['url']}")
         
-    tweet_content = generate_tweet_content(
-        topic=prompt_topic,
-        source_content=source_content,
-        tone="informative"
-    )
-    
-    if "Error" in tweet_content:
-        logger.error(f"Failed to generate tweet: {tweet_content}")
-        return
+        # Préparation du contenu source
+        source_content = item.get('content', '')
+        image_url = None
+        
+        # Deep Scraping si nécessaire (pour les liens web)
+        if not item.get('is_tweet'):
+            try:
+                # On scrape TOUJOURS pour avoir le contenu complet et l'image
+                scrape_result = asyncio.run(scrape_website(item['url']))
+                
+                if isinstance(scrape_result, dict):
+                    source_content = scrape_result.get('content', '')
+                    image_url = scrape_result.get('image_url')
+                else:
+                    source_content = scrape_result
+                
+                # Ignorer si contenu trop court (probablement erreur ou page vide)
+                if len(source_content) < 200:
+                    logger.warning(f"Content too short for {item['url']}, skipping.")
+                    mark_url_processed(item['url'], topic['id']) # Marquer pour ne pas réessayer en boucle
+                    continue
+                    
+            except Exception as e:
+                logger.error(f"Failed to scrape {item['url']}: {e}")
+                continue
 
-    # --- 4. Planification ---
+        # --- 3. Génération du tweet ---
+        
+        prompt_topic = topic['query']
+        if item.get('is_tweet'):
+            prompt_topic = f"Réaction au tweet sur {topic['query']}"
+            
+        tweet_content = generate_tweet_content(
+            topic=prompt_topic,
+            source_content=source_content,
+            tone="informative"
+        )
+        
+        if "Error" in tweet_content:
+            logger.error(f"Failed to generate tweet for {item['url']}: {tweet_content}")
+            continue
+
+        # --- 4. Planification ---
+        
+        # On étale les tweets si on en trouve plusieurs d'un coup (toutes les 5 min)
+        delay_minutes = 5 + (items_processed * 5)
+        run_at = datetime.now() + timedelta(minutes=delay_minutes)
+        
+        add_scheduled_tweet(tweet_content, run_at, source_url=item['url'], image_url=image_url)
+        
+        # --- 5. Clôture item ---
+        mark_url_processed(item['url'], topic['id'])
+        items_processed += 1
+        
+        # Limite de sécurité : max 3 tweets par cycle pour un même sujet pour éviter le spam
+        if items_processed >= 3:
+            break
     
-    run_at = datetime.now() + timedelta(minutes=5)
-    add_scheduled_tweet(tweet_content, run_at, source_url=found_item['url'])
-    
-    # --- 5. Clôture ---
-    
-    mark_url_processed(found_item['url'], topic['id'])
+    # Mise à jour du last_run global du sujet
     update_topic_last_run(topic['id'])
-    
-    logger.info(f"Successfully scheduled tweet for {topic['query']}")
+    if items_processed > 0:
+        logger.info(f"Successfully scheduled {items_processed} tweets for {topic['query']}")

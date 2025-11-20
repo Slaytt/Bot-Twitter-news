@@ -24,6 +24,7 @@ def init_db():
         twitter_id TEXT,
         error_message TEXT,
         source_url TEXT,
+        image_url TEXT,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )
     ''')
@@ -31,6 +32,12 @@ def init_db():
     # Migration pour ajouter la colonne source_url si elle n'existe pas
     try:
         cursor.execute('ALTER TABLE tweets ADD COLUMN source_url TEXT')
+    except sqlite3.OperationalError:
+        pass # La colonne existe déjà
+    
+    # Migration pour ajouter la colonne image_url si elle n'existe pas
+    try:
+        cursor.execute('ALTER TABLE tweets ADD COLUMN image_url TEXT')
     except sqlite3.OperationalError:
         pass # La colonne existe déjà
     
@@ -64,14 +71,14 @@ def init_db():
     conn.commit()
     conn.close()
 
-def add_scheduled_tweet(content: str, run_date: datetime, source_url: str = None) -> int:
-    """Ajoute un tweet à la file d'attente."""
+def add_scheduled_tweet(content: str, run_date: datetime, source_url: str = None, image_url: str = None) -> int:
+    """Ajoute un tweet à la file d'attente (en attente de validation)."""
     conn = get_db_connection()
     cursor = conn.cursor()
     
     cursor.execute(
-        'INSERT INTO tweets (content, scheduled_time, status, source_url) VALUES (?, ?, ?, ?)',
-        (content, run_date, 'pending', source_url)
+        'INSERT INTO tweets (content, scheduled_time, status, source_url, image_url) VALUES (?, ?, ?, ?, ?)',
+        (content, run_date, 'awaiting_approval', source_url, image_url)
     )
     
     tweet_id = cursor.lastrowid
@@ -232,6 +239,71 @@ def delete_monitored_topic(topic_id: int):
     cursor = conn.cursor()
     
     cursor.execute('UPDATE monitored_topics SET is_active = 0 WHERE id = ?', (topic_id,))
+    
+    conn.commit()
+    conn.close()
+
+def get_tweets_awaiting_approval():
+    """Récupère tous les tweets en attente de validation."""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    
+    cursor.execute('''
+        SELECT * FROM tweets 
+        WHERE status = 'awaiting_approval'
+        ORDER BY created_at DESC
+    ''')
+    
+    tweets = [dict(row) for row in cursor.fetchall()]
+    conn.close()
+    return tweets
+
+def approve_tweet(tweet_id: int):
+    """Approuve un tweet pour envoi."""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    
+    cursor.execute(
+        'UPDATE tweets SET status = ? WHERE id = ?',
+        ('pending', tweet_id)
+    )
+    
+    conn.commit()
+    conn.close()
+
+def reject_tweet(tweet_id: int):
+    """Rejette un tweet (le supprime)."""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    
+    cursor.execute('DELETE FROM tweets WHERE id = ?', (tweet_id,))
+    
+    conn.commit()
+    conn.close()
+
+def send_tweet_now(tweet_id: int):
+    """Force l'envoi immédiat d'un tweet en mettant le scheduled_time à maintenant."""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    
+    now = datetime.now()
+    cursor.execute(
+        'UPDATE tweets SET scheduled_time = ? WHERE id = ? AND status = ?',
+        (now, tweet_id, 'pending')
+    )
+    
+    conn.commit()
+    conn.close()
+
+def update_tweet_content(tweet_id: int, new_content: str):
+    """Met à jour le contenu d'un tweet."""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    
+    cursor.execute(
+        'UPDATE tweets SET content = ? WHERE id = ?',
+        (new_content, tweet_id)
+    )
     
     conn.commit()
     conn.close()

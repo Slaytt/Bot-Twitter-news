@@ -24,62 +24,78 @@ def generate_tweet_content(topic: str, source_content: str = None, tone: str = "
         genai.configure(api_key=api_key)
         model = genai.GenerativeModel('models/gemini-2.5-flash')
 
-        # Framework de tweet viral
+        # Framework de tweet tech viral 2025
         prompt = f"""
-🎯 RÔLE : Tu es un éditorialiste Twitter cynique et viral. Ton objectif : faire arrêter le scroll.
+🔥 RÔLE : Tu es un journaliste tech FR viral. Objectif : faire exploser le compteur de vues.
 
-📰 ARTICLE À TRANSFORMER :
+📰 ARTICLE SOURCE :
 {source_content[:2500] if source_content else topic}
 
 🎨 TON : {tone}
 
-📋 FRAMEWORK DE CRÉATION (APPLIQUE CES 4 RÈGLES) :
+📋 RECETTE TWEET TECH VIRAL 2025 (APPLIQUE DANS L'ORDRE) :
 
-1. PATTERN INTERRUPT (L'Arrêt sur Image)
-   ❌ INTERDIT : "Aujourd'hui...", "Une nouvelle étude...", "Découvrez...", "Voici..."
-   ✅ COMMENCE PAR :
-   - Une opinion tranchée
-   - Un fait absurde tiré de l'article
-   - Une question rhétorique provocante
-   - Un chiffre fou
+1. ACCROCHE CHOC + CHIFFRE/NOM (5 mots max)
+   Commence fort avec :
+   - « [Marque] vient de tuer… »
+   - « [Entreprise] facture [prix fou] »
+   - « [Boîte] dépose un brevet qui… »
+   - « Cette startup FR lève [montant] en secret »
    
-2. CURIOSITY GAP (Le Fossé de Curiosité)
-   - Repère le CHIFFRE le plus fou ou la CITATION la plus polémique
-   - Tease-le sans TOUT dévoiler
-   - Donne le "quoi", cache le "comment"
+   🚨 Emoji OBLIGATOIRE au début : 🔥 ou 🚨
    
-3. ÉMOTION (Ton Marrant/Cynique)
-   - Utilise l'ironie ou l'exagération
-   - Adopte le ton d'un ami blasé qui n'en revient pas
-   - Sois sarcastique sur les conséquences
+2. LA PUNCHLINE QUI STOPPE LE SCROLL
+   Une phrase qui touche la peur, cupidité ou émerveillement :
+   - « …et personne n'en parle. »
+   - « Ça arrive en France dès [mois]. »
+   - « Les chiffres sont hallucinants. »
+   - « C'est terrifiant/génial. »
    
-4. MISE EN FORME
-   - MAXIMUM 280 caractères (STRICT)
-   - Utilise des sauts de ligne pour aérer
-   - 1-2 emojis MAX (placés stratégiquement, PAS en fin)
-   - PAS de hashtags
+3. LE TWIST FRANÇAIS OBLIGATOIRE
+   Ajoute un angle critique FR :
+   - « Pendant ce temps l'Europe réfléchit encore à réguler »
+   - « Arnaque ou révolution ? »
+   - « Les GAFAM nous prennent pour des vaches à lait »
+   - « Les Français paient 3x plus cher que les US »
+   
+4. CALL TO ACTION + HASHTAG
+   - « Vous en pensez quoi ? »
+   - « RT si vous êtes choqués »
+   - Hashtags tech FR : #IA #Tech #GPT #Nvidia #Apple
 
-📝 EXEMPLE CONCRET :
+📝 EXEMPLES RÉELS QUI ONT EXPLOSÉ :
+
+✅ BON (1,2M vues) :
+"🔥 xAI vient de sortir Grok-4. Il bat GPT-5 sur tous les benchmarks.
+
+Les scores sont hallucinants.
+
+L'Europe toujours bloquée sur Grok-2 🤦
+
+#IA #Tech"
+
+✅ BON (780k vues) :
+"🚨 Le nouveau MacBook Pro M5 : 8 499 € en France.
+
+Aux US ? 5 999 $.
+
+Merci la taxe GAFA et les normes européennes.
+
+Vous trouvez ça normal ? #Apple"
 
 ❌ MAUVAIS :
-"Apple sort un nouveau casque VR à 3500$. En savoir plus."
-
-✅ BON :
-"3 500 $ pour regarder des films tout seul ? 💸
-
-Apple vient de se surpasser avec un casque que personne ne pourra s'offrir.
-
-Les specs qui justifient ce prix (ou pas) 👇"
+"Apple sort un nouveau produit. C'est bien. #Tech"
 
 🎯 TA MISSION :
-Crée UN SEUL tweet viral sur "{topic}" en suivant le framework ci-dessus.
+Crée UN tweet viral sur "{topic}" avec le framework ci-dessus.
 
 ⚠️ CONTRAINTES ABSOLUES :
 - Moins de 280 caractères
-- Pas de hashtags
-- Commence par un Pattern Interrupt
-- Utilise le Curiosity Gap
-- Ton ironique/cynique
+- Commence par 🔥 ou 🚨
+- UNIQUEMENT des infos VRAIES de l'article
+- Inclus le twist français
+- Ajoute 1-2 hashtags tech FR max
+- Sauts de ligne pour aérer
 - Réponds UNIQUEMENT avec le tweet, rien d'autre
 """
 

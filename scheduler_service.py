@@ -37,8 +37,9 @@ def check_and_send_tweets():
 
         logger.info(f"Sending tweet {tweet['id']}: {tweet['content'][:30]}...")
         
-        # Tentative d'envoi
-        result = post_tweet(tweet['content'])
+        # Tentative d'envoi (avec image si disponible)
+        image_url = tweet.get('image_url')
+        result = post_tweet(tweet['content'], image_url=image_url)
         
         if "Error" in result:
             logger.error(f"Failed to send tweet {tweet['id']}: {result}")

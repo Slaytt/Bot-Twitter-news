@@ -1,10 +1,13 @@
 import asyncio
 from playwright.async_api import async_playwright
 
-async def scrape_website(url: str) -> str:
+async def scrape_website(url: str) -> dict:
     """
     Scrape le contenu principal d'une page web.
-    Extrait le titre, la date, l'auteur et le contenu principal de l'article.
+    Extrait le titre, la date, l'auteur, le contenu principal et l'image.
+    
+    Returns:
+        dict: {'content': str, 'image_url': str | None}
     """
     browser = None
     try:
@@ -78,6 +81,23 @@ async def scrape_website(url: str) -> str:
                 }
             """)
             
+            # Extraction de l'image principale
+            image_url = await page.evaluate("""
+                () => {
+                    // Chercher l'image Open Graph (meilleure qualité)
+                    const ogImage = document.querySelector('meta[property="og:image"], meta[name="twitter:image"]');
+                    if (ogImage && ogImage.content) return ogImage.content;
+                    
+                    // Sinon, chercher la première image dans l'article
+                    const articleImages = document.querySelectorAll('article img, main img, .article-content img, .post-content img');
+                    if (articleImages.length > 0) {
+                        return articleImages[0].src;
+                    }
+                    
+                    return null;
+                }
+            """)
+            
             # Formatage du résultat
             result = f"Title: {title}\n"
             if author:
@@ -86,10 +106,16 @@ async def scrape_website(url: str) -> str:
                 result += f"Published: {date}\n"
             result += f"\nContent:\n{content[:3000]}"  # Limiter à 3000 caractères
             
-            return result
+            return {
+                'content': result,
+                'image_url': image_url
+            }
             
     except Exception as e:
-        return f"Error scraping {url}: {str(e)}"
+        return {
+            'content': f"Error scraping {url}: {str(e)}",
+            'image_url': None
+        }
     finally:
         if browser:
             await browser.close()

@@ -9,3 +9,4 @@ pytest-asyncio
 pytest-mock
 apscheduler
 google-generativeai
+requests
