@@ -26,77 +26,36 @@ def generate_tweet_content(topic: str, source_content: str = None, tone: str = "
 
         # Framework de tweet tech viral 2025
         prompt = f"""
-🔥 RÔLE : Tu es un journaliste tech FR viral. Objectif : faire exploser le compteur de vues.
+🔥 RÔLE : Tu es un expert Tech/IA influent sur Twitter France. Ton but est d'informer et d'engager ta communauté avec des analyses pertinentes et percutantes.
 
-📰 ARTICLE SOURCE :
-{source_content[:2500] if source_content else topic}
+📰 CONTEXTE (ARTICLE SOURCE) :
+{source_content[:3000] if source_content else topic}
+
+🎯 OBJECTIF :
+Rédige un tweet captivant sur ce sujet. Il doit être informatif, précis, et donner envie de réagir, sans tomber dans le clickbait bas de gamme.
+
+⚡ RÈGLES D'OR :
+1. **Varies les structures** : Ne commence pas toujours par une emoji ou une phrase choc standard. Pose une question, donne un fait brut, ou partage une opinion tranchée.
+2. **Sois précis** : Utilise les chiffres, noms et détails techniques présents dans le texte source. Pas de généralités.
+3. **Ton naturel et engageant** : Écris comme un humain passionné, pas comme un robot marketing. Utilise l'humour ou l'ironie avec parcimonie mais efficacité.
+4. **Pas de répétitions** : Évite les formules toutes faites comme "Pendant ce temps l'Europe..." ou "Révolution ou arnaque ?" à chaque fois.
+5. **Longueur** : Utilise l'espace nécessaire pour donner de la valeur (max 280 caractères).
 
 🎨 TON : {tone}
 
-📋 RECETTE TWEET TECH VIRAL 2025 (APPLIQUE DANS L'ORDRE) :
+STRUCTURES POSSIBLES (à varier) :
+- **L'analyse** : Fait + Conséquence + Question ouverte.
+- **Le comparatif** : Avant vs Maintenant (ou US vs FR, mais subtil).
+- **Le "Saviez-vous"** : Un détail technique méconnu et fascinant.
+- **L'opinion** : Une prise de position forte sur l'actu.
 
-1. ACCROCHE CHOC + CHIFFRE/NOM (5 mots max)
-   Commence fort avec :
-   - « [Marque] vient de tuer… »
-   - « [Entreprise] facture [prix fou] »
-   - « [Boîte] dépose un brevet qui… »
-   - « Cette startup FR lève [montant] en secret »
-   
-   🚨 Emoji OBLIGATOIRE au début : 🔥 ou 🚨
-   
-2. LA PUNCHLINE QUI STOPPE LE SCROLL
-   Une phrase qui touche la peur, cupidité ou émerveillement :
-   - « …et personne n'en parle. »
-   - « Ça arrive en France dès [mois]. »
-   - « Les chiffres sont hallucinants. »
-   - « C'est terrifiant/génial. »
-   
-3. LE TWIST FRANÇAIS OBLIGATOIRE
-   Ajoute un angle critique FR :
-   - « Pendant ce temps l'Europe réfléchit encore à réguler »
-   - « Arnaque ou révolution ? »
-   - « Les GAFAM nous prennent pour des vaches à lait »
-   - « Les Français paient 3x plus cher que les US »
-   
-4. CALL TO ACTION + HASHTAG
-   - « Vous en pensez quoi ? »
-   - « RT si vous êtes choqués »
-   - Hashtags tech FR : #IA #Tech #GPT #Nvidia #Apple
+Exemple de bon tweet (structure variable) :
+"355 milliards de paramètres pour le nouveau GLM-4.5 de Zhipu AI. 🤯
+Il surpasse GPT-4 sur plusieurs benchmarks clés. La Chine ne rattrape pas son retard, elle est en train de passer devant sur l'open source.
+On teste ça quand ?"
 
-📝 EXEMPLES RÉELS QUI ONT EXPLOSÉ :
-
-✅ BON (1,2M vues) :
-"🔥 xAI vient de sortir Grok-4. Il bat GPT-5 sur tous les benchmarks.
-
-Les scores sont hallucinants.
-
-L'Europe toujours bloquée sur Grok-2 🤦
-
-#IA #Tech"
-
-✅ BON (780k vues) :
-"🚨 Le nouveau MacBook Pro M5 : 8 499 € en France.
-
-Aux US ? 5 999 $.
-
-Merci la taxe GAFA et les normes européennes.
-
-Vous trouvez ça normal ? #Apple"
-
-❌ MAUVAIS :
-"Apple sort un nouveau produit. C'est bien. #Tech"
-
-🎯 TA MISSION :
-Crée UN tweet viral sur "{topic}" avec le framework ci-dessus.
-
-⚠️ CONTRAINTES ABSOLUES :
-- Moins de 280 caractères
-- Commence par 🔥 ou 🚨
-- UNIQUEMENT des infos VRAIES de l'article
-- Inclus le twist français
-- Ajoute 1-2 hashtags tech FR max
-- Sauts de ligne pour aérer
-- Réponds UNIQUEMENT avec le tweet, rien d'autre
+TA MISSION :
+Génère UN seul tweet sur "{topic}".
 """
 
         response = model.generate_content(prompt)
@@ -111,4 +70,4 @@ Crée UN tweet viral sur "{topic}" avec le framework ci-dessus.
 
 if __name__ == "__main__":
     # Test rapide (nécessite une clé API valide)
-    print(generate_tweet_content("L'intelligence artificielle en 2024", tone="enthousiaste"))
+    print(generate_tweet_content("Zhipu AI défie GPT-4 avec GLM-4.5", tone="enthousiaste"))

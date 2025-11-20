@@ -1,6 +1,6 @@
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.interval import IntervalTrigger
-from database import get_pending_tweets, update_tweet_status, get_monthly_count
+from database import get_pending_tweets, update_tweet_status, get_monthly_count, get_setting
 from tools.twitter import post_tweet
 import logging
 from datetime import datetime
@@ -13,6 +13,11 @@ MONTHLY_LIMIT = 500
 
 def check_and_send_tweets():
     """Vérifie les tweets en attente et les envoie si le quota le permet."""
+    # Vérifier si en pause
+    if get_setting("pause_mode", "False") == "True":
+        logger.info("Bot is in PAUSE mode. Skipping tweet check.")
+        return
+
     logger.info("Checking for pending tweets...")
     
     pending_tweets = get_pending_tweets()

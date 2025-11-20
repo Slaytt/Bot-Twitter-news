@@ -18,11 +18,29 @@ st.set_page_config(page_title="Twitter Bot Manager", page_icon="🤖", layout="w
 st.title("🤖 Twitter Bot Manager")
 
 # Sidebar Navigation
-page = st.sidebar.radio("Navigation", ["Dashboard", "Générateur de Tweets", "✅ Validation", "File d'attente", "Activité de veille", "Veille Automatique"])
+page = st.sidebar.radio("Navigation", ["Dashboard", "Générateur de Tweets", "✅ Validation", "File d'attente", "🏆 Top Tweets", "Activité de veille", "Veille Automatique"])
+
+# --- SIDEBAR OPTIONS ---
+st.sidebar.markdown("---")
+from database import get_setting, set_setting
+
+# Charger l'état depuis la DB
+current_pause_state = get_setting("pause_mode", "False") == "True"
+pause_mode = st.sidebar.checkbox("⏸️ PAUSE GÉNÉRALE", value=current_pause_state, help="Si coché, aucun tweet ne sera envoyé par le planificateur.")
+
+if pause_mode != current_pause_state:
+    set_setting("pause_mode", str(pause_mode))
+    st.rerun()
+
+if pause_mode:
+    st.sidebar.warning("⚠️ Mode PAUSE activé")
 
 # --- DASHBOARD ---
 if page == "Dashboard":
     st.header("Tableau de bord")
+    
+    if pause_mode:
+        st.error("⚠️ LE BOT EST EN PAUSE. Aucun envoi ne sera effectué.")
     
     col1, col2 = st.columns(2)
     
@@ -80,7 +98,7 @@ elif page == "Générateur de Tweets":
         if st.button("Planifier l'envoi", type="primary"):
             run_at = datetime.combine(schedule_date, schedule_time)
             add_scheduled_tweet(edited_tweet, run_at)
-            st.success(f"Tweet planifié pour le {run_at} !")
+            st.success(f"Tweet planifié pour le {run_at} (en attente de validation) !")
             st.session_state.tweet_preview = None
             st.rerun()
 
@@ -88,7 +106,8 @@ elif page == "Générateur de Tweets":
 elif page == "✅ Validation":
     st.header("✅ Validation des Tweets")
     
-    from database import get_tweets_awaiting_approval, approve_tweet, reject_tweet, update_tweet_content
+    from database import get_tweets_awaiting_approval, approve_tweet, reject_tweet, update_tweet_content, update_tweet_image
+    from duckduckgo_search import DDGS
     
     awaiting = get_tweets_awaiting_approval()
     
@@ -103,16 +122,32 @@ elif page == "✅ Validation":
                 
                 col_img, col_content = st.columns([1, 2])
                 
-                # Colonne Image
+                # Colonne Image (Éditable)
                 with col_img:
-                    if tweet.get('image_url'):
+                    current_img = tweet.get('image_url', '')
+                    if current_img:
                         try:
-                            st.image(tweet['image_url'], use_container_width=True)
+                            st.image(current_img, use_container_width=True)
                         except:
-                            st.write(f"🖼️ Image: {tweet['image_url'][:50]}...")
+                            st.warning(f"Image invalide")
                     else:
                         st.info("Pas d'image")
-                        
+                    
+                    # Champ d'édition d'image
+                    new_img_url = st.text_input("URL Image", value=current_img if current_img else "", key=f"img_{tweet['id']}")
+                    
+                    # Recherche d'image rapide
+                    with st.expander("🔍 Chercher une image"):
+                        search_query = st.text_input("Mots-clés", value=tweet.get('source_url', '') or "Tech News", key=f"search_{tweet['id']}")
+                        if st.button("Chercher", key=f"btn_search_{tweet['id']}"):
+                            try:
+                                results = DDGS().images(search_query, max_results=3)
+                                for res in results:
+                                    st.image(res['image'], width=150)
+                                    st.code(res['image'], language=None)
+                            except Exception as e:
+                                st.error(f"Erreur recherche: {e}")
+
                 # Colonne Contenu (Éditable)
                 with col_content:
                     st.caption(f"📅 Programmé pour : {tweet['scheduled_time']}")
@@ -137,19 +172,78 @@ elif page == "✅ Validation":
                 # Boutons d'action
                 col1, col2, col3 = st.columns([1, 1, 3])
                 with col1:
-                    if st.button("✅ Valider & Envoyer", key=f"approve_{tweet['id']}", type="primary"):
-                        # Sauvegarder les modifications d'abord
+                    if st.button("✅ Valider & Planifier", key=f"approve_{tweet['id']}", type="primary"):
+                        # Sauvegarder les modifications
                         if new_content != tweet['content']:
                             update_tweet_content(tweet['id'], new_content)
                         
+                        if new_img_url != current_img:
+                            update_tweet_image(tweet['id'], new_img_url)
+                        
                         approve_tweet(tweet['id'])
-                        st.success("Tweet mis à jour et approuvé !")
+                        st.success("Tweet validé et ajouté à la file d'attente !")
                         st.rerun()
                 with col2:
                     if st.button("❌ Rejeter", key=f"reject_{tweet['id']}"):
                         reject_tweet(tweet['id'])
                         st.warning("Tweet rejeté")
                         st.rerun()
+
+# --- TOP TWEETS ---
+elif page == "🏆 Top Tweets":
+    st.header("🏆 Top Tweets Français Tech")
+    
+    st.info("📊 Récupère les 3 tweets français les plus populaires des dernières 24h sur l'IA, Twitch, Crypto et Jeux Vidéo")
+    
+    from tools.twitter_scraper import scrape_top_french_tech_tweets
+    
+    # Avertissement
+    st.success("✅ Utilise le scraping web (pas de quota API)")
+    st.caption("⏱️ Le chargement peut prendre 10-20 secondes...")
+    
+    if st.button("🔄 Actualiser le Top 3", type="primary"):
+        with st.spinner("Scraping Twitter..."):
+            try:
+                # Utiliser asyncio pour appeler la fonction asynchrone
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+                top_tweets = loop.run_until_complete(scrape_top_french_tech_tweets())
+                loop.close()
+                
+                st.session_state['top_tweets'] = top_tweets
+                st.session_state['last_refresh'] = datetime.now()
+                
+                if not top_tweets:
+                    st.warning("⚠️ Aucun tweet trouvé. Vérifiez les logs du terminal pour plus de détails.")
+            except Exception as e:
+                st.error(f"❌ Erreur lors du scraping : {str(e)}")
+                import traceback
+                st.code(traceback.format_exc())
+    
+    # Affichage des résultats
+    if 'top_tweets' in st.session_state and st.session_state['top_tweets']:
+        st.success(f"✅ Dernière mise à jour : {st.session_state.get('last_refresh', 'N/A').strftime('%Y-%m-%d %H:%M:%S')}")
+        
+        for i, tweet in enumerate(st.session_state['top_tweets'], 1):
+            with st.container():
+                st.markdown("---")
+                
+                col1, col2 = st.columns([3, 1])
+                
+                with col1:
+                    st.markdown(f"### #{i} - {tweet['text'][:100]}...")
+                    st.caption(f"🕒 {tweet['created_at'].strftime('%Y-%m-%d %H:%M')} | 🏷️ {tweet.get('topic', 'N/A')}")
+                    st.markdown(f"[🔗 Voir le tweet]({tweet['url']})")
+                
+                with col2:
+                    st.metric("❤️ Likes", f"{tweet['likes']:,}")
+                    st.metric("🔄 Retweets", f"{tweet['retweets']:,}")
+                    st.metric("📊 Score", f"{tweet['score']:,}")
+    
+    elif 'top_tweets' in st.session_state and not st.session_state['top_tweets']:
+        st.warning("Aucun tweet trouvé pour les critères sélectionnés.")
+    else:
+        st.info("👆 Cliquez sur 'Actualiser' pour récupérer les meilleurs tweets !")
 
 # --- QUEUE ---
 elif page == "File d'attente":

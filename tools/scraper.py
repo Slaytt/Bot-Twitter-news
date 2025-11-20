@@ -102,8 +102,40 @@ async def scrape_website(url: str) -> dict:
             result = f"Title: {title}\n"
             if author:
                 result += f"Author: {author}\n"
+            
+            is_recent = True
             if date:
                 result += f"Published: {date}\n"
+                try:
+                    from datetime import datetime, timedelta
+                    from dateutil import parser
+                    
+                    # Parse la date (supporte plusieurs formats ISO, etc.)
+                    pub_date = parser.parse(date)
+                    
+                    # Si pas de timezone, on assume UTC pour comparer
+                    if pub_date.tzinfo is None:
+                        pub_date = pub_date.replace(tzinfo=None)
+                        now = datetime.utcnow()
+                    else:
+                        now = datetime.now(pub_date.tzinfo)
+                        
+                    # Vérifier si l'article a plus de 7 jours
+                    if now - pub_date > timedelta(days=7):
+                        is_recent = False
+                        print(f"⚠️ Article ignoré (trop vieux) : {date}")
+                except Exception as e:
+                    print(f"⚠️ Impossible de parser la date {date}: {e}")
+                    # En cas de doute, on garde l'article
+                    pass
+
+            if not is_recent:
+                return {
+                    'content': None,
+                    'image_url': None,
+                    'error': 'Article too old (> 7 days)'
+                }
+
             result += f"\nContent:\n{content[:3000]}"  # Limiter à 3000 caractères
             
             return {

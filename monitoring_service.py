@@ -106,6 +106,20 @@ def process_topic(topic):
                 else:
                     source_content = scrape_result
                 
+                # Fallback Image Search si pas d'image trouvée
+                if not image_url:
+                    try:
+                        logger.info(f"No image found for {item['url']}, searching fallback...")
+                        # Utiliser le titre ou une partie de l'URL pour la recherche
+                        search_term = item.get('title') or topic['query']
+                        ddgs = DDGS()
+                        images = ddgs.images(search_term, max_results=1)
+                        if images:
+                            image_url = images[0]['image']
+                            logger.info(f"Fallback image found: {image_url}")
+                    except Exception as e:
+                        logger.warning(f"Fallback image search failed: {e}")
+
                 # Ignorer si contenu trop court (probablement erreur ou page vide)
                 if len(source_content) < 200:
                     logger.warning(f"Content too short for {item['url']}, skipping.")

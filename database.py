@@ -20,7 +20,7 @@ def init_db():
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         content TEXT NOT NULL,
         scheduled_time TIMESTAMP NOT NULL,
-        status TEXT NOT NULL DEFAULT 'pending', -- pending, sent, failed, skipped
+        status TEXT NOT NULL DEFAULT 'awaiting_approval', -- awaiting_approval, pending, sent, failed, skipped
         twitter_id TEXT,
         error_message TEXT,
         source_url TEXT,
@@ -28,6 +28,8 @@ def init_db():
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )
     ''')
+
+
     
     # Migration pour ajouter la colonne source_url si elle n'existe pas
     try:
@@ -68,8 +70,36 @@ def init_db():
     )
     ''')
     
+    cursor.execute('''
+    CREATE TABLE IF NOT EXISTS settings (
+        key TEXT PRIMARY KEY,
+        value TEXT
+    )
+    ''')
+    
     conn.commit()
     conn.close()
+
+def set_setting(key: str, value: str):
+    """Définit une valeur de configuration."""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)', (key, str(value)))
+    conn.commit()
+    conn.close()
+
+def get_setting(key: str, default: str = None) -> str:
+    """Récupère une valeur de configuration."""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute('SELECT value FROM settings WHERE key = ?', (key,))
+        result = cursor.fetchone()
+        return result['value'] if result else default
+    except sqlite3.OperationalError:
+        return default
+    finally:
+        conn.close()
 
 def add_scheduled_tweet(content: str, run_date: datetime, source_url: str = None, image_url: str = None) -> int:
     """Ajoute un tweet à la file d'attente (en attente de validation)."""
@@ -303,6 +333,19 @@ def update_tweet_content(tweet_id: int, new_content: str):
     cursor.execute(
         'UPDATE tweets SET content = ? WHERE id = ?',
         (new_content, tweet_id)
+    )
+    
+    conn.commit()
+    conn.close()
+
+def update_tweet_image(tweet_id: int, image_url: str):
+    """Met à jour l'image d'un tweet."""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    
+    cursor.execute(
+        'UPDATE tweets SET image_url = ? WHERE id = ?',
+        (image_url, tweet_id)
     )
     
     conn.commit()
