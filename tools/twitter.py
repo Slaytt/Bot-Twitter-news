@@ -35,6 +35,34 @@ def post_tweet(content: str) -> str:
     except Exception as e:
         return f"Error posting tweet: {str(e)}"
 
+def search_tweets(query: str, max_results: int = 10) -> list[dict]:
+    """
+    Recherche des tweets récents.
+    Note: Nécessite un accès API Basic ou Pro pour la recherche v2.
+    """
+    client = get_twitter_client()
+    if not client:
+        return []
+        
+    try:
+        # search_recent_tweets est pour l'API v2
+        tweets = client.search_recent_tweets(query=query, max_results=max_results, tweet_fields=['created_at', 'author_id'])
+        if not tweets.data:
+            return []
+            
+        results = []
+        for tweet in tweets.data:
+            results.append({
+                'id': tweet.id,
+                'text': tweet.text,
+                'created_at': tweet.created_at
+            })
+        return results
+    except Exception as e:
+        # Fallback ou log
+        print(f"Error searching tweets: {e}")
+        return []
+
 if __name__ == "__main__":
     # Ne fonctionnera que si .env est configuré
     print(post_tweet("Hello from MCP Bot!"))

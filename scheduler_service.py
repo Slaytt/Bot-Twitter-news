@@ -72,7 +72,7 @@ def start_scheduler():
     # Cycle de veille (toutes les 10 minutes)
     scheduler.add_job(
         run_monitoring_cycle,
-        trigger=IntervalTrigger(minutes=10),
+        trigger=IntervalTrigger(minutes=1),
         id='monitoring_cycle',
         name='Run monitoring cycle',
         replace_existing=True

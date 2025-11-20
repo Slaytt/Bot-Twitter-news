@@ -3,30 +3,120 @@ from playwright.async_api import async_playwright
 
 async def scrape_website(url: str) -> str:
     """
-    Scrape le contenu textuel d'un site web donné.
-    
-    Args:
-        url: L'URL du site à scraper.
-        
-    Returns:
-        Le contenu textuel de la page ou un message d'erreur.
+    Scrape le contenu principal d'une page web.
+    Extrait le titre, la date, l'auteur et le contenu principal de l'article.
     """
+    browser = None
+    try:
+        async with async_playwright() as p:
+            browser = await p.chromium.launch(headless=True)
+            page = await browser.new_page()
+            
+            await page.goto(url)
+            await page.wait_for_load_state("networkidle")
+            
+            # Extraction des métadonnées
+            title = await page.title()
+            
+            # Essayer d'extraire l'auteur
+            author = await page.evaluate("""
+                () => {
+                    const authorMeta = document.querySelector('meta[name="author"], meta[property="article:author"]');
+                    if (authorMeta) return authorMeta.content;
+                    
+                    const authorSpan = document.querySelector('[rel="author"], .author, .author-name');
+                    if (authorSpan) return authorSpan.innerText;
+                    
+                    return null;
+                }
+            """)
+            
+            # Essayer d'extraire la date
+            date = await page.evaluate("""
+                () => {
+                    const dateMeta = document.querySelector('meta[property="article:published_time"], meta[name="publish-date"]');
+                    if (dateMeta) return dateMeta.content;
+                    
+                    const timeTag = document.querySelector('time[datetime]');
+                    if (timeTag) return timeTag.getAttribute('datetime');
+                    
+                    return null;
+                }
+            """)
+            
+            # Extraction du contenu principal
+            content = await page.evaluate("""
+                () => {
+                    // Cibler le contenu principal de l'article
+                    const selectors = [
+                        'article',
+                        'main article',
+                        '[role="main"] article',
+                        '.article-content',
+                        '.post-content',
+                        '.entry-content',
+                        'main',
+                        '#content'
+                    ];
+                    
+                    let mainContent = null;
+                    for (const selector of selectors) {
+                        mainContent = document.querySelector(selector);
+                        if (mainContent) break;
+                    }
+                    
+                    if (!mainContent) {
+                        mainContent = document.body;
+                    }
+                    
+                    // Supprimer les éléments indésirables
+                    const unwanted = mainContent.querySelectorAll('script, style, nav, header, footer, aside, .ad, .advertisement, .social-share, .comments');
+                    unwanted.forEach(el => el.remove());
+                    
+                    // Extraire le texte clean
+                    return mainContent.innerText;
+                }
+            """)
+            
+            # Formatage du résultat
+            result = f"Title: {title}\n"
+            if author:
+                result += f"Author: {author}\n"
+            if date:
+                result += f"Published: {date}\n"
+            result += f"\nContent:\n{content[:3000]}"  # Limiter à 3000 caractères
+            
+            return result
+            
+    except Exception as e:
+        return f"Error scraping {url}: {str(e)}"
+    finally:
+        if browser:
+            await browser.close()
+
+async def get_links_from_page(url: str) -> list[str]:
+    """Extrait tous les liens d'une page."""
+    browser = None # Initialize browser to None
     try:
         async with async_playwright() as p:
             browser = await p.chromium.launch(headless=True)
             page = await browser.new_page()
             await page.goto(url)
-            # Attendre que le contenu soit chargé (simple attente réseau ici, peut être amélioré)
             await page.wait_for_load_state("networkidle")
             
-            content = await page.inner_text("body")
-            title = await page.title()
+            links = await page.evaluate("""
+                () => Array.from(document.querySelectorAll('a')).map(a => a.href)
+            """)
             
-            await browser.close()
-            
-            return f"Title: {title}\n\nContent:\n{content}"
+            # Filtrer les liens vides ou javascript
+            valid_links = [l for l in links if l and l.startswith('http')]
+            return list(set(valid_links)) # Unique links
     except Exception as e:
-        return f"Error scraping {url}: {str(e)}"
+        print(f"Error getting links from {url}: {str(e)}")
+        return []
+    finally:
+        if browser:
+            await browser.close()
 
 if __name__ == "__main__":
     # Test simple si exécuté directement

@@ -23,9 +23,16 @@ def init_db():
         status TEXT NOT NULL DEFAULT 'pending', -- pending, sent, failed, skipped
         twitter_id TEXT,
         error_message TEXT,
+        source_url TEXT,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )
     ''')
+    
+    # Migration pour ajouter la colonne source_url si elle n'existe pas
+    try:
+        cursor.execute('ALTER TABLE tweets ADD COLUMN source_url TEXT')
+    except sqlite3.OperationalError:
+        pass # La colonne existe déjà
     
     cursor.execute('''
     CREATE TABLE IF NOT EXISTS monitored_topics (
@@ -34,9 +41,16 @@ def init_db():
         interval_minutes INTEGER DEFAULT 60,
         last_run TIMESTAMP,
         is_active BOOLEAN DEFAULT 1,
+        source_type TEXT DEFAULT 'web_search', -- web_search, twitter, specific_url
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )
     ''')
+    
+    # Migration pour ajouter la colonne si elle n'existe pas (pour les DB existantes)
+    try:
+        cursor.execute('ALTER TABLE monitored_topics ADD COLUMN source_type TEXT DEFAULT "web_search"')
+    except sqlite3.OperationalError:
+        pass # La colonne existe déjà
     
     cursor.execute('''
     CREATE TABLE IF NOT EXISTS processed_urls (
@@ -50,14 +64,14 @@ def init_db():
     conn.commit()
     conn.close()
 
-def add_scheduled_tweet(content: str, run_date: datetime) -> int:
+def add_scheduled_tweet(content: str, run_date: datetime, source_url: str = None) -> int:
     """Ajoute un tweet à la file d'attente."""
     conn = get_db_connection()
     cursor = conn.cursor()
     
     cursor.execute(
-        'INSERT INTO tweets (content, scheduled_time, status) VALUES (?, ?, ?)',
-        (content, run_date, 'pending')
+        'INSERT INTO tweets (content, scheduled_time, status, source_url) VALUES (?, ?, ?, ?)',
+        (content, run_date, 'pending', source_url)
     )
     
     tweet_id = cursor.lastrowid
@@ -146,14 +160,14 @@ def get_monthly_count() -> int:
 
 # --- Monitoring Functions ---
 
-def add_monitored_topic(query: str, interval_minutes: int = 60) -> int:
+def add_monitored_topic(query: str, interval_minutes: int = 60, source_type: str = 'web_search') -> int:
     """Ajoute un sujet à surveiller."""
     conn = get_db_connection()
     cursor = conn.cursor()
     
     cursor.execute(
-        'INSERT INTO monitored_topics (query, interval_minutes) VALUES (?, ?)',
-        (query, interval_minutes)
+        'INSERT INTO monitored_topics (query, interval_minutes, source_type) VALUES (?, ?, ?)',
+        (query, interval_minutes, source_type)
     )
     
     topic_id = cursor.lastrowid

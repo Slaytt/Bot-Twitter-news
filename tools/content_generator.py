@@ -22,28 +22,74 @@ def generate_tweet_content(topic: str, source_content: str = None, tone: str = "
 
     try:
         genai.configure(api_key=api_key)
-        model = genai.GenerativeModel('gemini-pro')
+        model = genai.GenerativeModel('models/gemini-2.5-flash')
 
+        # Framework de tweet viral
         prompt = f"""
-        Rédige un tweet engageant sur le sujet suivant : "{topic}".
-        
-        Ton : {tone}
-        
-        Contraintes :
-        - Maximum 280 caractères (strictement).
-        - Inclus 2-3 hashtags pertinents.
-        - Utilise des emojis si approprié.
-        - Sois concis et impactant.
-        - Ne mets pas de guillemets autour du tweet.
-        - Réponds UNIQUEMENT avec le contenu du tweet.
-        """
+🎯 RÔLE : Tu es un éditorialiste Twitter cynique et viral. Ton objectif : faire arrêter le scroll.
 
-        if source_content:
-            # On limite le contexte pour éviter de dépasser les tokens ou de noyer le modèle
-            prompt += f"\n\nUtilise ces informations comme contexte (mais ne copie pas bêtement) :\n{source_content[:2000]}"
+📰 ARTICLE À TRANSFORMER :
+{source_content[:2500] if source_content else topic}
+
+🎨 TON : {tone}
+
+📋 FRAMEWORK DE CRÉATION (APPLIQUE CES 4 RÈGLES) :
+
+1. PATTERN INTERRUPT (L'Arrêt sur Image)
+   ❌ INTERDIT : "Aujourd'hui...", "Une nouvelle étude...", "Découvrez...", "Voici..."
+   ✅ COMMENCE PAR :
+   - Une opinion tranchée
+   - Un fait absurde tiré de l'article
+   - Une question rhétorique provocante
+   - Un chiffre fou
+   
+2. CURIOSITY GAP (Le Fossé de Curiosité)
+   - Repère le CHIFFRE le plus fou ou la CITATION la plus polémique
+   - Tease-le sans TOUT dévoiler
+   - Donne le "quoi", cache le "comment"
+   
+3. ÉMOTION (Ton Marrant/Cynique)
+   - Utilise l'ironie ou l'exagération
+   - Adopte le ton d'un ami blasé qui n'en revient pas
+   - Sois sarcastique sur les conséquences
+   
+4. MISE EN FORME
+   - MAXIMUM 280 caractères (STRICT)
+   - Utilise des sauts de ligne pour aérer
+   - 1-2 emojis MAX (placés stratégiquement, PAS en fin)
+   - PAS de hashtags
+
+📝 EXEMPLE CONCRET :
+
+❌ MAUVAIS :
+"Apple sort un nouveau casque VR à 3500$. En savoir plus."
+
+✅ BON :
+"3 500 $ pour regarder des films tout seul ? 💸
+
+Apple vient de se surpasser avec un casque que personne ne pourra s'offrir.
+
+Les specs qui justifient ce prix (ou pas) 👇"
+
+🎯 TA MISSION :
+Crée UN SEUL tweet viral sur "{topic}" en suivant le framework ci-dessus.
+
+⚠️ CONTRAINTES ABSOLUES :
+- Moins de 280 caractères
+- Pas de hashtags
+- Commence par un Pattern Interrupt
+- Utilise le Curiosity Gap
+- Ton ironique/cynique
+- Réponds UNIQUEMENT avec le tweet, rien d'autre
+"""
 
         response = model.generate_content(prompt)
-        return response.text.strip()
+        tweet = response.text.strip()
+        
+        # Nettoyer le tweet (enlever les guillemets si l'IA en a mis)
+        tweet = tweet.strip('"').strip("'").strip()
+        
+        return tweet
     except Exception as e:
         return f"Error generating content: {str(e)}"
 

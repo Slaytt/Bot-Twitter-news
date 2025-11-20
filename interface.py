@@ -3,6 +3,7 @@ import asyncio
 from datetime import datetime, timedelta
 from tools.scraper import scrape_website
 from tools.content_generator import generate_tweet_content
+import database
 from database import (
     init_db, get_monthly_count, add_scheduled_tweet, get_all_pending_tweets, 
     delete_scheduled_tweet, get_active_topics, add_monitored_topic, 
@@ -17,7 +18,7 @@ st.set_page_config(page_title="Twitter Bot Manager", page_icon="🤖", layout="w
 st.title("🤖 Twitter Bot Manager")
 
 # Sidebar Navigation
-page = st.sidebar.radio("Navigation", ["Dashboard", "Générateur de Tweets", "File d'attente", "Veille Automatique"])
+page = st.sidebar.radio("Navigation", ["Dashboard", "Générateur de Tweets", "File d'attente", "Activité de veille", "Veille Automatique"])
 
 # --- DASHBOARD ---
 if page == "Dashboard":
@@ -99,16 +100,59 @@ elif page == "File d'attente":
                     delete_scheduled_tweet(tweet['id'])
                     st.rerun()
 
+# --- ACTIVITY ---
+elif page == "Activité de veille":
+    st.header("📊 Activité de veille")
+    
+    # Récupérer tous les tweets (pending + sent) avec source_url
+    conn = database.get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute('''
+        SELECT * FROM tweets 
+        WHERE source_url IS NOT NULL 
+        ORDER BY created_at DESC 
+        LIMIT 50
+    ''')
+    activities = [dict(row) for row in cursor.fetchall()]
+    conn.close()
+    
+    if not activities:
+        st.info("Aucune activité de veille pour le moment. La veille génère des tweets automatiquement quand elle trouve du nouveau contenu.")
+    else:
+        st.write(f"**{len(activities)} contenus découverts**")
+        
+        for activity in activities:
+            status_emoji = {
+                'pending': '⏳',
+                'sent': '✅',
+                'failed': '❌',
+                'skipped': '⏭️'
+            }.get(activity['status'], '❓')
+            
+            with st.expander(f"{status_emoji} {activity['scheduled_time']} - {activity['content'][:60]}..."):
+                st.write(f"**Statut** : {activity['status']}")
+                st.write(f"**Source** : [{activity['source_url']}]({activity['source_url']})")
+                st.write(f"**Tweet** :")
+                st.code(activity['content'])
+                if activity['error_message']:
+                    st.error(f"Erreur : {activity['error_message']}")
+
 # --- MONITORING ---
 elif page == "Veille Automatique":
     st.header("📡 Veille Automatique")
     
     with st.form("add_topic"):
-        new_topic = st.text_input("Nouveau sujet à surveiller")
+        col1, col2 = st.columns([2, 1])
+        with col1:
+            new_topic = st.text_input("Sujet, Mot-clé ou URL")
+        with col2:
+            source_type = st.selectbox("Type de source", ["web_search", "twitter", "specific_url"])
+            
         interval = st.number_input("Intervalle (minutes)", min_value=10, value=60)
+        
         if st.form_submit_button("Ajouter"):
-            add_monitored_topic(new_topic, interval)
-            st.success(f"Sujet '{new_topic}' ajouté !")
+            add_monitored_topic(new_topic, interval, source_type)
+            st.success(f"Sujet '{new_topic}' ({source_type}) ajouté !")
             st.rerun()
             
     st.subheader("Sujets actifs")
@@ -118,9 +162,10 @@ elif page == "Veille Automatique":
         st.info("Aucun sujet surveillé.")
     else:
         for t in topics:
-            col1, col2, col3 = st.columns([3, 2, 1])
+            col1, col2, col3, col4 = st.columns([3, 2, 2, 1])
             col1.write(f"**{t['query']}**")
-            col2.write(f"Toutes les {t['interval_minutes']} min")
-            if col3.button("🗑️", key=f"del_topic_{t['id']}"):
+            col2.write(f"Type: `{t.get('source_type', 'web_search')}`")
+            col3.write(f"Toutes les {t['interval_minutes']} min")
+            if col4.button("🗑️", key=f"del_topic_{t['id']}"):
                 delete_monitored_topic(t['id'])
                 st.rerun()
