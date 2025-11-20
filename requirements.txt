@@ -1,3 +1,11 @@
 mcp
 playwright
 pytest
+streamlit
+duckduckgo-search
+tweepy
+python-dotenv
+pytest-asyncio
+pytest-mock
+apscheduler
+google-generativeai

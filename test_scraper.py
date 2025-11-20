@@ -2,8 +2,8 @@ import asyncio
 from tools.scraper import scrape_website
 
 async def test_scraper():
-    print("Testing scraper on https://example.com...")
-    result = await scrape_website("https://example.com")
+    print("Testing scraper on https://www.lemonde.fr/")
+    result = await scrape_website("https://www.lemonde.fr/")
     print("Result:")
     print(result)
     
