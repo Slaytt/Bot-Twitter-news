@@ -106,7 +106,7 @@ elif page == "Générateur de Tweets":
 elif page == "✅ Validation":
     st.header("✅ Validation des Tweets")
     
-    from database import get_tweets_awaiting_approval, approve_tweet, reject_tweet, update_tweet_content, update_tweet_image
+    from database import get_tweets_awaiting_approval, approve_tweet, reject_tweet, update_tweet_content, update_tweet_image, update_tweet_thread_content
     from duckduckgo_search import DDGS
     
     awaiting = get_tweets_awaiting_approval()
@@ -124,29 +124,75 @@ elif page == "✅ Validation":
                 
                 # Colonne Image (Éditable)
                 with col_img:
-                    current_img = tweet.get('image_url', '')
-                    if current_img:
+                    # Récupérer l'image actuelle (DB) et celle en cours d'édition (Session State)
+                    db_img = tweet.get('image_url', '')
+                    img_key = f"img_{tweet['id']}"
+                    
+                    # Si l'utilisateur a modifié le champ, on utilise la nouvelle valeur pour la preview
+                    preview_img = st.session_state.get(img_key, db_img)
+                    
+                    if preview_img:
                         try:
-                            st.image(current_img, use_container_width=True)
+                            st.image(preview_img, use_container_width=True)
                         except:
                             st.warning(f"Image invalide")
                     else:
                         st.info("Pas d'image")
                     
                     # Champ d'édition d'image
-                    new_img_url = st.text_input("URL Image", value=current_img if current_img else "", key=f"img_{tweet['id']}")
+                    new_img_url = st.text_input("URL Image", value=db_img, key=img_key)
                     
-                    # Recherche d'image rapide
+                    # Recherche d'image rapide (Bulldozer Method)
                     with st.expander("🔍 Chercher une image"):
-                        search_query = st.text_input("Mots-clés", value=tweet.get('source_url', '') or "Tech News", key=f"search_{tweet['id']}")
-                        if st.button("Chercher", key=f"btn_search_{tweet['id']}"):
-                            try:
-                                results = DDGS().images(search_query, max_results=3)
-                                for res in results:
-                                    st.image(res['image'], width=150)
-                                    st.code(res['image'], language=None)
-                            except Exception as e:
-                                st.error(f"Erreur recherche: {e}")
+                        search_query = st.text_input("Mots-clés ou URL", value=tweet.get('source_url', '') or "Tech News", key=f"search_{tweet['id']}")
+                        
+                        if st.button("Chercher / Extraire", key=f"btn_search_{tweet['id']}"):
+                            # Si c'est une URL Google Images ou autre, on essaie d'extraire
+                            if "http" in search_query:
+                                import re
+                                from urllib.parse import unquote
+                                
+                                # Cas Google Images : extraire imgurl
+                                if "google.com/imgres" in search_query:
+                                    match = re.search(r'imgurl=(.*?)(&|$)', search_query)
+                                    if match:
+                                        extracted_url = unquote(match.group(1))
+                                        st.success("Image extraite du lien Google !")
+                                        st.image(extracted_url, width=300)
+                                        st.code(extracted_url, language=None)
+                                        # Proposer de l'appliquer directement
+                                        if st.button("Utiliser cette image", key=f"use_extracted_{tweet['id']}"):
+                                            update_tweet_image(tweet['id'], extracted_url)
+                                            st.rerun()
+                                    else:
+                                        st.warning("Impossible d'extraire l'image du lien Google.")
+                                else:
+                                    # C'est peut-être une URL d'image directe
+                                    st.image(search_query, width=300)
+                                    st.code(search_query, language=None)
+                            
+                            else:
+                                # Recherche normale par mots-clés
+                                try:
+                                    import asyncio
+                                    from tools.search import search_images_playwright
+                                    
+                                    with st.spinner("Recherche d'images (Bulldozer Mode)..."):
+                                        # Utiliser asyncio pour appeler la fonction asynchrone
+                                        loop = asyncio.new_event_loop()
+                                        asyncio.set_event_loop(loop)
+                                        results = loop.run_until_complete(search_images_playwright(search_query, max_results=3))
+                                        loop.close()
+                                        
+                                        if results:
+                                            for res in results:
+                                                st.image(res['image'], width=150)
+                                                st.code(res['image'], language=None)
+                                        else:
+                                            st.warning("Aucune image trouvée.")
+                                            
+                                except Exception as e:
+                                    st.error(f"Erreur recherche : {str(e)}")
 
                 # Colonne Contenu (Éditable)
                 with col_content:
@@ -155,19 +201,53 @@ elif page == "✅ Validation":
                         st.caption(f"🔗 Source : {tweet['source_url']}")
                         
                     # Zone d'édition
+                    # On calcule d'abord pour afficher l'info AVANT la zone de texte (plus visible)
+                    current_content_val = st.session_state.get(f"edit_{tweet['id']}", tweet['content'])
+                    chars = len(current_content_val)
+                    
+                    import re
+                    urls = re.findall(r'https?://\S+', current_content_val)
+                    will_thread = False
+                    
+                    if chars > 280 and urls:
+                        link = urls[-1]
+                        content_without_link = current_content_val.replace(link, "").strip()
+                        if len(content_without_link) <= 280:
+                            will_thread = True
+                    
+                    # Affichage de l'indicateur
+                    if chars > 280:
+                        if will_thread:
+                             st.info(f"🧵 **Thread détecté** : Le lien sera posté en réponse ({chars} chars)")
+                        else:
+                             st.error(f"⚠️ **Trop long !** {chars}/280 caractères (Pas de thread possible)")
+                    else:
+                        if urls:
+                             st.caption(f"✅ {chars}/280 caractères (Lien détecté, sera threadé si > 280)")
+                        else:
+                             st.caption(f"✅ {chars}/280 caractères")
+
                     new_content = st.text_area(
                         "Éditer le tweet", 
                         value=tweet['content'], 
                         key=f"edit_{tweet['id']}",
                         height=200
                     )
+
+                    # Zone d'édition du Thread (Optionnel)
+                    # Pré-remplir avec le lien source si pas de thread existant
+                    default_thread = tweet.get('thread_content', '')
+                    if not default_thread and tweet.get('source_url'):
+                        default_thread = f"🔗 Source : {tweet['source_url']}"
                     
-                    # Compteur de caractères
-                    chars = len(new_content)
-                    if chars > 280:
-                        st.warning(f"⚠️ {chars}/280 caractères (Trop long !)")
-                    else:
-                        st.caption(f"✅ {chars}/280 caractères")
+                    with st.expander("🧵 Ajouter une réponse (Thread)", expanded=bool(default_thread)):
+                        new_thread_content = st.text_area(
+                            "Contenu de la réponse",
+                            value=default_thread,
+                            key=f"thread_{tweet['id']}",
+                            height=100,
+                            help="Ce texte sera posté en réponse au tweet principal."
+                        )
                 
                 # Boutons d'action
                 col1, col2, col3 = st.columns([1, 1, 3])
@@ -177,8 +257,11 @@ elif page == "✅ Validation":
                         if new_content != tweet['content']:
                             update_tweet_content(tweet['id'], new_content)
                         
-                        if new_img_url != current_img:
+                        if new_img_url != tweet.get('image_url', ''):
                             update_tweet_image(tweet['id'], new_img_url)
+                        
+                        # Sauvegarder le thread
+                        update_tweet_thread_content(tweet['id'], new_thread_content)
                         
                         approve_tweet(tweet['id'])
                         st.success("Tweet validé et ajouté à la file d'attente !")
@@ -238,7 +321,8 @@ elif page == "🏆 Top Tweets":
                 with col2:
                     st.metric("❤️ Likes", f"{tweet['likes']:,}")
                     st.metric("🔄 Retweets", f"{tweet['retweets']:,}")
-                    st.metric("📊 Score", f"{tweet['score']:,}")
+                    st.metric("� Vues", f"{tweet.get('views', 0):,}")
+                    st.metric("�📊 Score", f"{tweet['score']:,}")
     
     elif 'top_tweets' in st.session_state and not st.session_state['top_tweets']:
         st.warning("Aucun tweet trouvé pour les critères sélectionnés.")

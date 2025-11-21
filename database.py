@@ -42,6 +42,12 @@ def init_db():
         cursor.execute('ALTER TABLE tweets ADD COLUMN image_url TEXT')
     except sqlite3.OperationalError:
         pass # La colonne existe déjà
+
+    # Migration pour ajouter la colonne thread_content si elle n'existe pas
+    try:
+        cursor.execute('ALTER TABLE tweets ADD COLUMN thread_content TEXT')
+    except sqlite3.OperationalError:
+        pass # La colonne existe déjà
     
     cursor.execute('''
     CREATE TABLE IF NOT EXISTS monitored_topics (
@@ -346,6 +352,19 @@ def update_tweet_image(tweet_id: int, image_url: str):
     cursor.execute(
         'UPDATE tweets SET image_url = ? WHERE id = ?',
         (image_url, tweet_id)
+    )
+    
+    conn.commit()
+    conn.close()
+
+def update_tweet_thread_content(tweet_id: int, thread_content: str):
+    """Met à jour le contenu du thread d'un tweet."""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    
+    cursor.execute(
+        'UPDATE tweets SET thread_content = ? WHERE id = ?',
+        (thread_content, tweet_id)
     )
     
     conn.commit()

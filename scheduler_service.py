@@ -42,13 +42,22 @@ def check_and_send_tweets():
 
         logger.info(f"Sending tweet {tweet['id']}: {tweet['content'][:30]}...")
         
-        # Tentative d'envoi (avec image si disponible)
+        # Tentative d'envoi (avec image et thread si disponibles)
         image_url = tweet.get('image_url')
-        result = post_tweet(tweet['content'], image_url=image_url)
+        thread_content = tweet.get('thread_content')
+        result = post_tweet(tweet['content'], image_url=image_url, thread_content=thread_content)
         
         if "Error" in result:
             logger.error(f"Failed to send tweet {tweet['id']}: {result}")
-            update_tweet_status(tweet['id'], 'failed', error=result)
+            
+            # Gestion spécifique du Rate Limit (429)
+            if "429" in result or "Too Many Requests" in result:
+                logger.warning("Rate Limit detected (429). Leaving tweet in pending state for retry later.")
+                # On ne change PAS le statut, il sera repris au prochain cycle (ou on pourrait ajouter un backoff)
+                # Optionnel : Mettre un message d'erreur temporaire sans changer le statut 'pending'
+                update_tweet_status(tweet['id'], 'pending', error="Rate Limit (429) - Will retry later")
+            else:
+                update_tweet_status(tweet['id'], 'failed', error=result)
         else:
             # Extraction de l'ID (format supposé: "Tweet posted successfully! ID: 12345")
             try:
