@@ -1,3 +1,12 @@
+---
+title: Twitter Bot News
+emoji: 🤖
+colorFrom: blue
+colorTo: indigo
+sdk: docker
+pinned: false
+---
+
 # Serveur MCP Twitter Bot News
 
 Ce projet implémente un serveur MCP (Model Context Protocol) en Python, fournissant des outils pour un bot Twitter automatisé, notamment un scraper web, une recherche web et la publication de tweets.
