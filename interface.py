@@ -7,8 +7,11 @@ import database
 from database import (
     init_db, get_monthly_count, add_scheduled_tweet, get_all_pending_tweets, 
     delete_scheduled_tweet, get_active_topics, add_monitored_topic, 
-    delete_monitored_topic
+    delete_scheduled_tweet, get_active_topics, add_monitored_topic, 
+    delete_scheduled_tweet, get_active_topics, add_monitored_topic, 
+    delete_monitored_topic, load_fixed_topics
 )
+from monitoring_service import run_monitoring_cycle
 
 # Ensure DB is initialized
 init_db()
@@ -427,7 +430,29 @@ elif page == "Veille Automatique":
         if st.form_submit_button("Ajouter"):
             add_monitored_topic(new_topic, interval, source_type)
             st.success(f"Sujet '{new_topic}' ({source_type}) ajouté !")
+            st.success(f"Sujet '{new_topic}' ({source_type}) ajouté !")
+            st.success(f"Sujet '{new_topic}' ({source_type}) ajouté !")
             st.rerun()
+            
+    st.markdown("---")
+    
+    # Zone de Debug / Reload
+    with st.expander("🔧 Debug / Persistance"):
+        import os
+        st.write(f"**FIXED_TOPICS Env Var**: `{os.getenv('FIXED_TOPICS', 'Not Set')}`")
+        if st.button("🔄 Recharger les sujets fixes (Env)"):
+            msg = load_fixed_topics()
+            st.info(msg)
+            st.rerun()
+            
+    if st.button("🔄 Lancer la veille maintenant (Force Run)", type="primary"):
+        with st.spinner("Exécution du cycle de veille en cours... (Cela peut prendre quelques minutes)"):
+            try:
+                # On lance le cycle de manière synchrone pour l'interface
+                run_monitoring_cycle()
+                st.success("Cycle de veille terminé ! Vérifiez l'onglet 'Validation' ou 'Activité'.")
+            except Exception as e:
+                st.error(f"Erreur lors de l'exécution : {str(e)}")
             
     st.subheader("Sujets actifs")
     topics = get_active_topics()

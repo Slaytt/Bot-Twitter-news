@@ -85,6 +85,42 @@ def init_db():
     
     conn.commit()
     conn.close()
+    
+    # Charger les sujets fixes après l'initialisation
+    load_fixed_topics()
+
+def load_fixed_topics():
+    """Charge les sujets fixes depuis la variable d'environnement FIXED_TOPICS."""
+    fixed_topics_env = os.getenv("FIXED_TOPICS")
+    print(f"DEBUG: FIXED_TOPICS env var: {fixed_topics_env}") # Debug print
+    
+    if fixed_topics_env:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        fixed_topics = [t.strip() for t in fixed_topics_env.split(',') if t.strip()]
+        
+        count_added = 0
+        for topic in fixed_topics:
+            # Déterminer le type
+            source_type = 'web_search'
+            if topic.startswith('http'):
+                source_type = 'specific_url'
+            
+            # Vérifier si existe déjà
+            cursor.execute('SELECT 1 FROM monitored_topics WHERE query = ?', (topic,))
+            if not cursor.fetchone():
+                print(f"Adding fixed topic: {topic}")
+                cursor.execute(
+                    'INSERT INTO monitored_topics (query, interval_minutes, source_type) VALUES (?, ?, ?)',
+                    (topic, 60, source_type)
+                )
+                count_added += 1
+        
+        conn.commit()
+        conn.close()
+        return f"Loaded {count_added} new topics from env. (Total in env: {len(fixed_topics)})"
+    return "No FIXED_TOPICS found in environment."
 
 def set_setting(key: str, value: str):
     """Définit une valeur de configuration."""
