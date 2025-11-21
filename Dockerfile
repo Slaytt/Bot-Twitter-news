@@ -22,16 +22,16 @@ RUN playwright install --with-deps chromium
 COPY . .
 
 # Variables d'environnement par défaut (à surcharger)
-ENV PORT=8501
+ENV PORT=7860
 
 # Exposition du port Streamlit
-EXPOSE 8501
+EXPOSE 7860
 
 # Commande de démarrage : lance le scheduler en arrière-plan et Streamlit au premier plan
 # On utilise un script shell pour lancer les deux
 RUN echo '#!/bin/bash\n\
-python server.py & \n\
-streamlit run interface.py --server.port=$PORT --server.address=0.0.0.0\n\
-' > /app/start.sh && chmod +x /app/start.sh
+    python server.py & \n\
+    streamlit run interface.py --server.port=$PORT --server.address=0.0.0.0\n\
+    ' > /app/start.sh && chmod +x /app/start.sh
 
 CMD ["/app/start.sh"]
