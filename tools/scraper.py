@@ -109,19 +109,23 @@ async def scrape_website(url: str) -> dict:
                 try:
                     from datetime import datetime, timedelta
                     from dateutil import parser
+                    import pytz
                     
                     # Parse la date (supporte plusieurs formats ISO, etc.)
                     pub_date = parser.parse(date)
                     
-                    # Si pas de timezone, on assume UTC pour comparer
+                    # Gestion des timezones pour la comparaison
+                    now = datetime.now(pytz.utc)
+                    
                     if pub_date.tzinfo is None:
-                        pub_date = pub_date.replace(tzinfo=None)
-                        now = datetime.utcnow()
-                    else:
-                        now = datetime.now(pub_date.tzinfo)
+                        # Si la date n'a pas de timezone, on assume UTC
+                        pub_date = pub_date.replace(tzinfo=pytz.utc)
+                    
+                    # Convertir en UTC pour la comparaison
+                    pub_date_utc = pub_date.astimezone(pytz.utc)
                         
                     # Vérifier si l'article a plus de 7 jours
-                    if now - pub_date > timedelta(days=7):
+                    if now - pub_date_utc > timedelta(days=7):
                         is_recent = False
                         print(f"⚠️ Article ignoré (trop vieux) : {date}")
                 except Exception as e:

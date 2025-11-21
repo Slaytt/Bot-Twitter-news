@@ -149,6 +149,42 @@ def post_tweet(content: str, image_url: str = None, thread_content: str = None) 
             else:
                 raise e
 
+    except tweepy.errors.TooManyRequests as e:
+        print(f"⚠️ 429 Too Many Requests. Retrying in 15 minutes...")
+        # Si c'est un script long, on pourrait attendre, mais ici on retourne l'erreur pour que le scheduler réessaie plus tard
+        # Ou on implémente un petit retry si c'est juste un burst
+        import time
+        
+        max_retries = 3
+        retry_delay = 60 # 1 minute initial delay
+        
+        for attempt in range(max_retries):
+            try:
+                print(f"🔄 Retry attempt {attempt+1}/{max_retries} in {retry_delay}s...")
+                time.sleep(retry_delay)
+                
+                response = attempt_post(main_tweet_content, media_ids)
+                main_tweet_id = response.data['id']
+                result_msg = f"Tweet posted successfully (after retry)! ID: {main_tweet_id}"
+                
+                if thread_content:
+                    try:
+                        time.sleep(2) # Pause entre tweet et thread
+                        thread_response = attempt_post(thread_content, reply_to_id=main_tweet_id)
+                        result_msg += f" + Thread ID: {thread_response.data['id']}"
+                    except Exception:
+                        result_msg += " (Thread failed)"
+                
+                return result_msg
+                
+            except tweepy.errors.TooManyRequests:
+                retry_delay *= 2 # Exponential backoff
+                continue
+            except Exception as retry_error:
+                return f"Error posting tweet (retry failed): {str(retry_error)}"
+        
+        return f"Error posting tweet: 429 Too Many Requests (Max retries exceeded)"
+
     except Exception as e:
         return f"Error posting tweet: {str(e)}"
 

@@ -10,3 +10,5 @@ pytest-mock
 apscheduler
 google-generativeai
 requests
+python-dateutil
+pytz
