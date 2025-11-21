@@ -95,4 +95,15 @@ def start_scheduler():
     
     scheduler.start()
     logger.info("Scheduler started.")
+    
+    # Exécuter la veille immédiatement au démarrage (pour éviter d'attendre l'intervalle)
+    # On l'ajoute comme un job 'date' qui s'exécute maintenant
+    scheduler.add_job(
+        run_monitoring_cycle,
+        trigger='date',
+        run_date=datetime.now(),
+        id='monitoring_cycle_init',
+        name='Run monitoring cycle (Init)'
+    )
+    
     return scheduler
