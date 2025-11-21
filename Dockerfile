@@ -30,7 +30,7 @@ EXPOSE 7860
 # Commande de démarrage : lance le scheduler en arrière-plan et Streamlit au premier plan
 # On utilise un script shell pour lancer les deux
 RUN echo '#!/bin/bash\n\
-    python server.py & \n\
+    python worker.py & \n\
     streamlit run interface.py --server.port=$PORT --server.address=0.0.0.0\n\
     ' > /app/start.sh && chmod +x /app/start.sh
 
