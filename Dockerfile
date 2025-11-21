@@ -1,4 +1,4 @@
-FROM python:3.10-slim
+FROM python:3.11-slim
 
 # Installation des dépendances système pour Playwright et autres outils
 RUN apt-get update && apt-get install -y \
