@@ -101,10 +101,10 @@ elif page == "Générateur de Tweets":
     if 'generated_tweet' in st.session_state:
         st.subheader("Prévisualisation")
         edited_tweet = st.text_area("Modifier le tweet", value=st.session_state['generated_tweet'], height=150)
-        st.caption(f"Caractères: {len(edited_tweet)} / 280")
+        st.caption(f"Caractères: {len(edited_tweet)} / 25000")
         
-        if len(edited_tweet) > 280:
-            st.warning("Attention : Le tweet dépasse 280 caractères !")
+        if len(edited_tweet) > 25000:
+            st.warning("Attention : Le tweet dépasse 25000 caractères !")
             
         col1, col2 = st.columns(2)
         with col1:
@@ -232,23 +232,17 @@ elif page == "✅ Validation":
                         if len(content_without_link) <= 280:
                             will_thread = True
                     
-                    # Affichage de l'indicateur
-                    if chars > 280:
-                        if will_thread:
-                             st.info(f"🧵 **Thread détecté** : Le lien sera posté en réponse ({chars} chars)")
-                        else:
-                             st.error(f"⚠️ **Trop long !** {chars}/280 caractères (Pas de thread possible)")
+                    # Affichage de l'indicateur (Support Twitter Premium)
+                    if chars > 25000:
+                         st.error(f"⚠️ **Trop long !** {chars}/25000 caractères")
                     else:
-                        if urls:
-                             st.caption(f"✅ {chars}/280 caractères (Lien détecté, sera threadé si > 280)")
-                        else:
-                             st.caption(f"✅ {chars}/280 caractères")
+                         st.caption(f"✅ {chars}/25000 caractères (Premium)")
 
                     new_content = st.text_area(
                         "Éditer le tweet", 
                         value=tweet['content'], 
                         key=f"edit_{tweet['id']}",
-                        height=200
+                        height=300 # Plus grand pour les longs tweets
                     )
 
                     # Zone d'édition du Thread (Optionnel)
