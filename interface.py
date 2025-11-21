@@ -2,7 +2,9 @@ import streamlit as st
 import asyncio
 from datetime import datetime, timedelta
 from tools.scraper import scrape_website
+from tools.scraper import scrape_website
 from tools.content_generator import generate_tweet_content
+from tools.twitter import post_tweet
 import database
 from database import (
     init_db, get_monthly_count, add_scheduled_tweet, get_all_pending_tweets, 
@@ -56,6 +58,18 @@ if page == "Dashboard":
     with col2:
         pending = len(get_all_pending_tweets())
         st.metric("Tweets en attente", pending)
+
+    # Zone de Test Configuration
+    with st.expander("🛠️ Test Configuration (Debug)"):
+        st.info("Utilisez ce bouton pour tester l'envoi d'un tweet EN DIRECT (sans passer par la file d'attente).")
+        test_msg = st.text_input("Message de test", value=f"Hello World from Bot! {datetime.now().strftime('%H:%M:%S')}")
+        if st.button("Envoyer Tweet Test (Sync)"):
+            with st.spinner("Envoi en cours..."):
+                res = post_tweet(test_msg)
+                if "Error" in res:
+                    st.error(f"❌ Échec : {res}")
+                else:
+                    st.success(f"✅ Succès : {res}")
 
 # --- GENERATOR ---
 elif page == "Générateur de Tweets":
