@@ -245,38 +245,20 @@ elif page == "✅ Validation":
                         height=300 # Plus grand pour les longs tweets
                     )
 
-                    # Zone d'édition du Thread (Optionnel)
-                    # Pré-remplir avec le lien source si pas de thread existant
-                    default_thread = tweet.get('thread_content', '')
-                    if not default_thread and tweet.get('source_url'):
-                        default_thread = f"🔗 Source : {tweet['source_url']}"
-                    
-                    with st.expander("🧵 Ajouter une réponse (Thread)", expanded=bool(default_thread)):
-                        new_thread_content = st.text_area(
-                            "Contenu de la réponse",
-                            value=default_thread,
-                            key=f"thread_{tweet['id']}",
-                            height=100,
-                            help="Ce texte sera posté en réponse au tweet principal."
-                        )
-                
-                # Boutons d'action
-                col1, col2, col3 = st.columns([1, 1, 3])
-                with col1:
-                    if st.button("✅ Valider & Planifier", key=f"approve_{tweet['id']}", type="primary"):
-                        # Sauvegarder les modifications
-                        if new_content != tweet['content']:
-                            update_tweet_content(tweet['id'], new_content)
-                        
-                        if new_img_url != tweet.get('image_url', ''):
-                            update_tweet_image(tweet['id'], new_img_url)
-                        
-                        # Sauvegarder le thread
-                        update_tweet_thread_content(tweet['id'], new_thread_content)
-                        
-                        approve_tweet(tweet['id'])
-                        st.success("Tweet validé et ajouté à la file d'attente !")
-                        st.rerun()
+                    # Boutons d'action
+                    col1, col2, col3 = st.columns([1, 1, 3])
+                    with col1:
+                        if st.button("✅ Valider & Planifier", key=f"approve_{tweet['id']}", type="primary"):
+                            # Sauvegarder les modifications
+                            if new_content != tweet['content']:
+                                update_tweet_content(tweet['id'], new_content)
+                            
+                            if new_img_url != tweet.get('image_url', ''):
+                                update_tweet_image(tweet['id'], new_img_url)
+                            
+                            approve_tweet(tweet['id'])
+                            st.success("Tweet validé et ajouté à la file d'attente !")
+                            st.rerun()
                 with col2:
                     if st.button("❌ Rejeter", key=f"reject_{tweet['id']}"):
                         reject_tweet(tweet['id'])

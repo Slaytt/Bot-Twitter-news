@@ -24,14 +24,13 @@ def get_twitter_client():
         access_token_secret=access_token_secret
     )
 
-def post_tweet(content: str, image_url: str = None, thread_content: str = None) -> str:
+def post_tweet(content: str, image_url: str = None) -> str:
     """
     Poste un tweet sur le compte configuré.
     
     Args:
         content: Le contenu du tweet.
         image_url: URL optionnelle d'une image à attacher.
-        thread_content: Contenu optionnel pour un thread (réponse).
         
     Returns:
         L'URL du tweet publié ou un message d'erreur.
@@ -85,49 +84,17 @@ def post_tweet(content: str, image_url: str = None, thread_content: str = None) 
                 # Continue sans image si ça échoue
         
         # Fonction interne pour poster
-        def attempt_post(text, media_ids=None, reply_to_id=None):
+        def attempt_post(text, media_ids=None):
             if media_ids:
-                return client.create_tweet(text=text, media_ids=media_ids, in_reply_to_tweet_id=reply_to_id)
+                return client.create_tweet(text=text, media_ids=media_ids)
             else:
-                return client.create_tweet(text=text, in_reply_to_tweet_id=reply_to_id)
-
-        # Vérification de la longueur et gestion des threads
-        main_tweet_content = content
-        
-        # Si pas de thread explicite, on garde la logique automatique (fallback)
-        if not thread_content:
-            import re
-            # Regex plus simple et robuste pour capturer les URLs
-            url_pattern = r'https?://\S+'
-            urls = re.findall(url_pattern, content)
-            
-            # Si le contenu est trop long (> 280) et qu'il y a un lien
-            if len(content) > 280 and urls:
-                link = urls[-1] # On prend le dernier lien (souvent la source)
-                
-                # On retire le lien du tweet principal
-                content_without_link = content.replace(link, "").strip()
-                
-                # Si sans le lien c'est bon (< 280), on fait un thread
-                if len(content_without_link) <= 280:
-                    main_tweet_content = content_without_link
-                    thread_content = f"🔗 Source : {link}"
-                    print("Tweet too long. Splitting link into a thread (Auto).")
+                return client.create_tweet(text=text)
 
         try:
             # Post du tweet principal
-            response = attempt_post(main_tweet_content, media_ids)
+            response = attempt_post(content, media_ids)
             main_tweet_id = response.data['id']
             result_msg = f"Tweet posted successfully! ID: {main_tweet_id}"
-            
-            # Post du thread si nécessaire
-            if thread_content:
-                try:
-                    thread_response = attempt_post(thread_content, reply_to_id=main_tweet_id)
-                    result_msg += f" + Thread ID: {thread_response.data['id']}"
-                except Exception as thread_error:
-                    print(f"Failed to post thread: {thread_error}")
-                    result_msg += " (Thread failed)"
             
             return result_msg
 
