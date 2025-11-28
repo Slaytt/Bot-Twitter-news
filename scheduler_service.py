@@ -105,4 +105,20 @@ def start_scheduler():
         name='Run monitoring cycle (Init)'
     )
     
+    # Nettoyage des vieux tweets en attente (toutes les heures)
+    from database import delete_old_awaiting_tweets
+    
+    def run_cleanup():
+        count = delete_old_awaiting_tweets(hours=24)
+        if count > 0:
+            logger.info(f"Cleaned up {count} old awaiting tweets.")
+
+    scheduler.add_job(
+        run_cleanup,
+        trigger=IntervalTrigger(hours=1),
+        id='cleanup_old_tweets',
+        name='Cleanup old awaiting tweets',
+        replace_existing=True
+    )
+
     return scheduler

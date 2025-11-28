@@ -124,3 +124,50 @@ Bot-Twitter-news/
 - [ ] Génération de contenu avec IA
 - [ ] Système de veille automatique sur des sujets
 
+## 📝 Changelog & Réalisations (Session Pair Programming)
+
+Ce projet a été considérablement amélioré pour devenir un bot autonome, robuste et déployable gratuitement. Voici un résumé des travaux effectués :
+
+### 🚀 Déploiement & Infrastructure
+- **Dockerisation complète** : Création d'un `Dockerfile` optimisé pour Hugging Face Spaces (Python 3.11, Port 7860).
+- **Stabilité du Background** : Implémentation de `worker.py` pour gérer le scheduler et éviter les crashs silencieux du conteneur.
+- **Persistance des Données** : Système de sauvegarde des sujets de veille via la variable d'environnement `FIXED_TOPICS` (contourne le disque éphémère des Spaces).
+- **Guide de Déploiement** : Documentation complète (`DEPLOYMENT.md`) pour héberger le bot gratuitement.
+
+### 🤖 Fonctionnalités du Bot
+- **Veille Automatique** : Scraper intelligent qui filtre les articles par date (moins d'une semaine) pour garantir la fraîcheur.
+- **Génération IA** : Intégration de Gemini pour rédiger des tweets engageants avec choix du ton.
+- **Support Twitter Premium** : Prise en charge des tweets longs (jusqu'à 25 000 caractères) et désactivation du threading automatique.
+- **Gestion des Quotas** : Backoff exponentiel pour gérer les erreurs `429 Too Many Requests` de l'API Twitter.
+
+### 🖥️ Interface de Gestion (Streamlit)
+- **Dashboard** : Vue d'ensemble des tweets en attente et statistiques mensuelles.
+- **Validation Manuelle** : File d'attente pour relire, modifier (texte/image) et valider chaque tweet avant envoi.
+- **Outils de Debug** :
+    - Bouton "Test Tweet (Sync)" pour vérifier la connexion API en direct.
+    - Bouton "Force Run" pour lancer la veille manuellement.
+    - Outil de rechargement des sujets persistants.
+
+---
+
+## 🔮 Roadmap / Pistes d'Évolution
+
+Voici des idées pour aller encore plus loin avec ce projet :
+
+### 1. Base de Données Robuste
+- **Migration vers PostgreSQL/Supabase** : Actuellement sur SQLite (fichier local), la base se reset à chaque redémarrage du Space (sauf les `FIXED_TOPICS`). Passer sur une vraie DB cloud permettrait de conserver l'historique des tweets et les stats sur le long terme.
+
+### 2. Intelligence Artificielle Avancée
+- **RAG (Retrieval Augmented Generation)** : Donner au bot une "mémoire" de ses anciens tweets pour éviter les répétitions ou créer des fils conducteurs.
+- **Analyse d'Images** : Utiliser Gemini Vision pour analyser les images des articles et générer des descriptions (Alt Text) automatiques pour l'accessibilité.
+
+### 3. Multimédia & Engagement
+- **Support Vidéo/GIF** : Permettre l'upload de vidéos natives ou la recherche de GIFs via Giphy.
+- **Auto-Reply** : Un mode où le bot peut répondre automatiquement aux commentaires sous ses tweets (avec validation humaine optionnelle).
+
+### 4. Multi-Compte
+- Gérer plusieurs comptes Twitter depuis la même interface (ex: un compte Tech, un compte Crypto).
+
+### 5. Notifications
+- Recevoir une alerte (Discord, Telegram, Email) quand un nouveau tweet est prêt à être validé, pour ne pas avoir à vérifier l'interface en permanence.
+

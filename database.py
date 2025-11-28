@@ -1,6 +1,6 @@
 import sqlite3
 import os
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import List, Dict, Optional
 
 DB_NAME = "tweets.db"
@@ -405,6 +405,24 @@ def update_tweet_thread_content(tweet_id: int, thread_content: str):
     
     conn.commit()
     conn.close()
+
+
+def delete_old_awaiting_tweets(hours: int = 24) -> int:
+    """Supprime les tweets en attente de validation depuis plus de X heures."""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    
+    cutoff_time = datetime.now() - timedelta(hours=hours)
+    
+    cursor.execute(
+        "DELETE FROM tweets WHERE status = 'awaiting_approval' AND created_at < ?",
+        (cutoff_time,)
+    )
+    
+    count = cursor.rowcount
+    conn.commit()
+    conn.close()
+    return count
 
 if __name__ == "__main__":
     # Test rapide si exécuté directement

@@ -75,7 +75,12 @@ def process_topic(topic):
         try:
             results = DDGS().text(topic['query'], max_results=5)
             for res in results:
-                potential_items.append({'url': res['href'], 'title': res['title'], 'is_tweet': False})
+                potential_items.append({
+                    'url': res['href'], 
+                    'title': res['title'], 
+                    'snippet': res.get('body', ''), # Capture snippet for fallback
+                    'is_tweet': False
+                })
         except Exception as e:
             logger.error(f"Search failed for {topic['query']}: {e}")
 
@@ -86,6 +91,12 @@ def process_topic(topic):
     for item in potential_items:
         # Vérifier si déjà traité
         if is_url_processed(item['url']):
+            continue
+
+        # Exclusion Actustream Player
+        if "actustream.fr/img/joueurs/" in item['url']:
+            logger.info(f"Skipping excluded URL: {item['url']}")
+            mark_url_processed(item['url'], topic['id'])
             continue
             
         logger.info(f"New content found: {item['url']}")
@@ -121,14 +132,27 @@ def process_topic(topic):
                         logger.warning(f"Fallback image search failed: {e}")
 
                 # Ignorer si contenu trop court (probablement erreur ou page vide)
+                # Ignorer si contenu trop court (probablement erreur ou page vide)
                 if len(source_content) < 200:
-                    logger.warning(f"Content too short for {item['url']}, skipping.")
-                    mark_url_processed(item['url'], topic['id']) # Marquer pour ne pas réessayer en boucle
-                    continue
+                    logger.warning(f"Content too short for {item['url']} ({len(source_content)} chars).")
+                    
+                    # FALLBACK: Utiliser le snippet si disponible
+                    if item.get('snippet'):
+                        logger.info(f"Using fallback snippet for {item['url']}")
+                        source_content = f"Title: {item.get('title')}\nSnippet: {item.get('snippet')}\n(Scraping failed or content too short)"
+                    else:
+                        logger.warning("No snippet available for fallback. Skipping.")
+                        mark_url_processed(item['url'], topic['id']) # Marquer pour ne pas réessayer en boucle
+                        continue
                     
             except Exception as e:
                 logger.error(f"Failed to scrape {item['url']}: {e}")
-                continue
+                # FALLBACK on error
+                if item.get('snippet'):
+                    logger.info(f"Using fallback snippet after error for {item['url']}")
+                    source_content = f"Title: {item.get('title')}\nSnippet: {item.get('snippet')}\n(Scraping error: {str(e)})"
+                else:
+                    continue
 
         # --- 3. Génération du tweet ---
         
