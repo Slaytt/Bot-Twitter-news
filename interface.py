@@ -238,12 +238,13 @@ elif page == "✅ Validation":
                     else:
                          st.caption(f"✅ {chars}/25000 caractères (Premium)")
 
-                    new_content = st.text_area(
-                        "Éditer le tweet", 
-                        value=tweet['content'], 
-                        key=f"edit_{tweet['id']}",
-                        height=150 # Plus compact pour éviter les bugs visuels
-                    )
+                    with st.container(height=300):
+                        new_content = st.text_area(
+                            "Éditer le tweet", 
+                            value=tweet['content'], 
+                            key=f"edit_{tweet['id']}",
+                            height=None # Laisse Streamlit gérer la hauteur dans le conteneur
+                        )
 
                     # Boutons d'action
                     col1, col2, col3 = st.columns([1, 1, 3])
