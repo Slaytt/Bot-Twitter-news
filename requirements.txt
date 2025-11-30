@@ -2,7 +2,7 @@ mcp
 playwright
 pytest
 streamlit
-ddgs
+duckduckgo-search
 tweepy
 python-dotenv
 pytest-asyncio
