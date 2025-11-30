@@ -12,11 +12,49 @@ async def scrape_website(url: str) -> dict:
     browser = None
     try:
         async with async_playwright() as p:
-            browser = await p.chromium.launch(headless=True)
-            page = await browser.new_page()
+            # Launch with arguments to hide automation
+            browser = await p.chromium.launch(
+                headless=True,
+                args=[
+                    '--disable-blink-features=AutomationControlled',
+                    '--disable-infobars',
+                    '--window-position=0,0',
+                    '--ignore-certificate-errors',
+                    '--ignore-certificate-errors-spki-list',
+                    '--user-agent=Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+                ]
+            )
             
-            await page.goto(url)
-            await page.wait_for_load_state("networkidle")
+            # Create context with realistic profile
+            context = await browser.new_context(
+                user_agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                viewport={'width': 1920, 'height': 1080},
+                locale="en-US",
+                timezone_id="America/New_York",
+                permissions=["geolocation"]
+            )
+            
+            # Mask webdriver property
+            await context.add_init_script("""
+                Object.defineProperty(navigator, 'webdriver', {
+                    get: () => undefined
+                });
+            """)
+            
+            page = await context.new_page()
+            
+            # Add extra headers
+            await page.set_extra_http_headers({
+                'Accept-Language': 'en-US,en;q=0.9',
+                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
+                'Referer': 'https://www.google.com/'
+            })
+            
+            await page.goto(url, timeout=60000)
+            try:
+                await page.wait_for_load_state("networkidle", timeout=10000)
+            except:
+                pass # Continue if networkidle times out
             
             # Extraction des métadonnées
             title = await page.title()
@@ -161,10 +199,49 @@ async def get_links_from_page(url: str) -> list[str]:
     browser = None # Initialize browser to None
     try:
         async with async_playwright() as p:
-            browser = await p.chromium.launch(headless=True)
-            page = await browser.new_page()
-            await page.goto(url)
-            await page.wait_for_load_state("networkidle")
+            # Launch with arguments to hide automation
+            browser = await p.chromium.launch(
+                headless=True,
+                args=[
+                    '--disable-blink-features=AutomationControlled',
+                    '--disable-infobars',
+                    '--window-position=0,0',
+                    '--ignore-certificate-errors',
+                    '--ignore-certificate-errors-spki-list',
+                    '--user-agent=Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+                ]
+            )
+            
+            # Create context with realistic profile
+            context = await browser.new_context(
+                user_agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                viewport={'width': 1920, 'height': 1080},
+                locale="en-US",
+                timezone_id="America/New_York",
+                permissions=["geolocation"]
+            )
+            
+            # Mask webdriver property
+            await context.add_init_script("""
+                Object.defineProperty(navigator, 'webdriver', {
+                    get: () => undefined
+                });
+            """)
+            
+            page = await context.new_page()
+            
+            # Add extra headers
+            await page.set_extra_http_headers({
+                'Accept-Language': 'en-US,en;q=0.9',
+                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
+                'Referer': 'https://www.google.com/'
+            })
+            
+            await page.goto(url, timeout=60000)
+            try:
+                await page.wait_for_load_state("networkidle", timeout=10000)
+            except:
+                pass # Continue if networkidle times out
             
             links = await page.evaluate("""
                 () => Array.from(document.querySelectorAll('a')).map(a => a.href)

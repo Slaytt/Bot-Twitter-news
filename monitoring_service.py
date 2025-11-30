@@ -66,8 +66,35 @@ def process_topic(topic):
         # Surveillance d'une page spécifique (Deep Scan)
         try:
             links = asyncio.run(get_links_from_page(topic['query']))
-            for link in links:
-                potential_items.append({'url': link, 'title': 'New Link', 'is_tweet': False})
+            
+            if not links:
+                logger.warning(f"No links found for {topic['query']} (possibly blocked), attempting fallback search...")
+                
+                # Fallback: Search for recent articles using keywords from URL
+                # "site:" operator fails on some domains with DDG, so we use keywords + region
+                try:
+                    from urllib.parse import urlparse
+                    parsed = urlparse(topic['query'])
+                    domain_part = parsed.netloc.replace('www.', '').split('.')[0] # e.g. reuters
+                    path_part = parsed.path.replace('/', ' ').replace('-', ' ').strip() # e.g. technology
+                    
+                    search_query = f"{domain_part} {path_part}"
+                    logger.info(f"Fallback query: {search_query}")
+                    
+                    results = DDGS().text(search_query, region='us-en', max_results=5)
+                    for res in results:
+                        potential_items.append({
+                            'url': res['href'], 
+                            'title': res['title'], 
+                            'snippet': res.get('body', ''),
+                            'is_tweet': False
+                        })
+                    logger.info(f"Fallback search found {len(results)} items.")
+                except Exception as e:
+                    logger.error(f"Fallback search failed: {e}")
+            else:
+                for link in links:
+                    potential_items.append({'url': link, 'title': 'New Link', 'is_tweet': False})
         except Exception as e:
             logger.error(f"Error monitoring URL {topic['query']}: {e}")
             

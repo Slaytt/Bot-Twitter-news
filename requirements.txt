@@ -2,7 +2,7 @@ mcp
 playwright
 pytest
 streamlit
-duckduckgo-search
+ddgs
 tweepy
 python-dotenv
 pytest-asyncio
@@ -12,3 +12,6 @@ google-generativeai
 requests
 python-dateutil
 pytz
+
+
+

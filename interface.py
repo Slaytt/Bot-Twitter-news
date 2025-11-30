@@ -242,7 +242,7 @@ elif page == "✅ Validation":
                         "Éditer le tweet", 
                         value=tweet['content'], 
                         key=f"edit_{tweet['id']}",
-                        height=300 # Plus grand pour les longs tweets
+                        height=150 # Plus compact pour éviter les bugs visuels
                     )
 
                     # Boutons d'action
