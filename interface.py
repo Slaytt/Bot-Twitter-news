@@ -218,7 +218,7 @@ elif page == "✅ Validation":
                         st.caption(f"🔗 Source : {tweet['source_url']}")
                         
                     # Zone d'édition
-                    # On calcule d'abord pour afficher l'info AVANT la zone de texte (plus visible)
+                    # On calcule d'abord pour afficher l'info APRES la zone de texte pour éviter le layout jitter
                     current_content_val = st.session_state.get(f"edit_{tweet['id']}", tweet['content'])
                     chars = len(current_content_val)
                     
@@ -232,19 +232,18 @@ elif page == "✅ Validation":
                         if len(content_without_link) <= 280:
                             will_thread = True
                     
-                    # Affichage de l'indicateur (Support Twitter Premium)
+                    new_content = st.text_area(
+                        "Éditer le tweet", 
+                        value=tweet['content'], 
+                        key=f"edit_{tweet['id']}",
+                        height=200 # Hauteur fixe stable
+                    )
+
+                    # Affichage de l'indicateur (Support Twitter Premium) - EN DESSOUS
                     if chars > 25000:
                          st.error(f"⚠️ **Trop long !** {chars}/25000 caractères")
                     else:
                          st.caption(f"✅ {chars}/25000 caractères (Premium)")
-
-                    with st.container(height=300):
-                        new_content = st.text_area(
-                            "Éditer le tweet", 
-                            value=tweet['content'], 
-                            key=f"edit_{tweet['id']}",
-                            height=None # Laisse Streamlit gérer la hauteur dans le conteneur
-                        )
 
                     # Boutons d'action
                     col1, col2, col3 = st.columns([1, 1, 3])
